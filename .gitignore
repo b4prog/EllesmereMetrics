@@ -39,3 +39,26 @@ luac.out
 *.x86_64
 *.hex
 
+# Addon build output (make pack)
+/build/
+/dist/
+
+# Lua bytecode
+*.luac
+
+# Coverage and test artifacts
+luacov.*.out
+*.tmp
+
+# Editors, IDEs and local agent settings
+.vscode/
+.idea/
+*.swp
+*~
+.claude/settings.local.json
+
+# Operating systems
+.DS_Store
+Thumbs.db
+Desktop.ini
+

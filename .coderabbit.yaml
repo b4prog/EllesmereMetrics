@@ -1,0 +1,108 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit pull request reviews: https://docs.coderabbit.ai/reference/configuration
+# Needs the CodeRabbit GitHub App installed on this repository (see README.md).
+# CodeRabbit also reads AGENTS.md as coding guidelines by default.
+
+language: en-US
+tone_instructions: >-
+  Be concise and specific. Name the file and line, the concrete risk and a fix.
+  Skip praise, summaries of unchanged code and style nits that luacheck or
+  EditorConfig already enforce.
+
+reviews:
+  profile: chill
+  high_level_summary: true
+  collapse_walkthrough: true
+  sequence_diagrams: false
+  estimate_code_review_effort: false
+  suggested_reviewers: false
+  poem: false
+  in_progress_fortune: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    - "!build/**"
+    - "!dist/**"
+  pre_merge_checks:
+    docstrings:
+      mode: "off"
+  tools:
+    luacheck:
+      enabled: true
+    shellcheck:
+      enabled: true
+    actionlint:
+      enabled: true
+    zizmor:
+      enabled: true
+    yamllint:
+      enabled: true
+    gitleaks:
+      enabled: true
+    markdownlint:
+      enabled: false
+    languagetool:
+      enabled: false
+    checkmake:
+      enabled: false
+  path_instructions:
+    - path: "**/*.lua"
+      instructions: |
+        This is a World of Warcraft: Forever 1.60.1 addon (12.x engine, Lua 5.1).
+        - Flag Lua 5.2+ features (goto, //, bitwise operators, table.unpack), new
+          globals, and WoW APIs that do not exist on Forever (retail-only or
+          Classic-only). Each WoW API read must be listed in .luacheckrc.
+        - Values from APIs that can return secrets (GetManaRegen is
+          SecretWhenUnitStatsRestricted) must pass ns.IsSecret before any
+          comparison, arithmetic, formatting, concatenation, indexing or publishing.
+          type() does not detect secrets. Flag any path that shows a stale value as
+          current or tries to work around a restriction.
+        - Updates must stay event-driven: no OnUpdate scripts or polling tickers,
+          unit events through RegisterUnitEvent(event, "player"), at most one
+          C_Timer.After(0) per burst. Event names must exist on Forever.
+        - Flag avoidable allocations or string formatting in frequently fired
+          handlers such as UNIT_AURA.
+        - Indentation is one tab per level; Lua files are ASCII only.
+    - path: "Brokers/**/*.lua"
+      instructions: |
+        - Broker names (EllesmereMetrics_*) are saved in users' EllesmereUI DataBars
+          profiles: flag any rename.
+        - LibDataBroker attributes must be assigned only when the displayed value
+          changes. text must stay plain and short and make sense without icon or
+          colors; explanations belong in label or OnTooltipShow.
+        - Never touch EllesmereUI frames or saved variables, and never copy
+          EllesmereUI code. Brokers must not depend on each other.
+        - Mana Regen shows the rates GetManaRegen reports, never "instant" gain.
+          Resting uses IsResting only, not GetXPExhaustion or GetRestState.
+    - path: "EllesmereMetrics.toc"
+      instructions: |
+        Interface must stay 16001 (WoW Forever 1.60.1) and Dependencies must keep
+        EllesmereUI. Core.lua loads first, every listed file must exist, the file is
+        ASCII, and Version follows MAJOR.MINOR.PATCH.
+    - path: "tests/**"
+      instructions: |
+        Tests run without a WoW client against the mock in tests/wow.lua. A new
+        event needs a KNOWN_EVENTS entry and a new API needs a mock. Prefer
+        assertions on published broker state, and flag tests that pass only
+        because of a mock limitation.
+    - path: "Makefile"
+      instructions: &packaging |
+        Must work with GNU make 3.81 (macOS) and 4.x, and POSIX sh (dash). The
+        archive must hold exactly one EllesmereMetrics/ folder with the TOC, the
+        files it lists and LICENSE. Missing files must fail the build clearly.
+    - path: "scripts/**"
+      instructions: *packaging
+    - path: ".github/**"
+      instructions: |
+        Third-party actions stay pinned to full commit SHAs with a version comment.
+        Keep permissions minimal, avoid pull_request_target and secrets, and call
+        Makefile targets instead of duplicating build logic.
+    - path: "*.md"
+      instructions: |
+        Flag claims of in-game verification that the change does not support, and
+        DataBars menu labels that do not match EllesmereUI. AGENTS.md is the only
+        agent instruction file; CLAUDE.md must contain only "@AGENTS.md".
+
+chat:
+  auto_reply: true
