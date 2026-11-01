@@ -77,7 +77,8 @@ file holds the rules for changing the code.
 
 ## Adding a broker
 
-1. Create `Brokers/<Name>.lua`, modeled on `Brokers/Resting.lua`.
+1. Create `Brokers/<Name>.lua`, modeled on `Brokers/ManaRegen.lua` if its API can
+   return secrets, otherwise on `Brokers/Resting.lua`.
 2. List it in `EllesmereMetrics.toc` after `Core.lua`.
 3. Add `tests/test_<name>.lua`: initial state, every event, unchanged values,
    and unreadable or secret values.

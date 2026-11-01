@@ -194,8 +194,11 @@ EllesmereUI versions may rename or move them. Settings cannot be opened during c
    **Bar Settings** section of the same page; bars are positioned with EllesmereUI's
    unlock mode (`/unlock`).
 
-If the plugins are missing from the dropdown, EllesmereMetrics is not loaded: see step
-7 of the [installation](#installation). A block whose plugin is no longer loaded hides
+If the plugins are missing from the dropdown, first check that EllesmereMetrics is loaded
+(step 7 of the [installation](#installation)). If it is, look in chat for a message
+starting with `EllesmereMetrics:`. The addon can load and still register nothing, for
+example when it cannot find the LibDataBroker-1.1 library that EllesmereUI provides; in
+that case reinstall or update EllesmereUI. A block whose plugin is no longer loaded hides
 itself and shows as "not loaded" in its dropdown.
 
 ## Usage examples
@@ -355,21 +358,36 @@ state, its events and its tooltip; brokers never depend on one another.
    if not dataobj then return end
 
    local shown
+   local updateQueued = false
 
    local function Update()
+   	updateQueued = false
    	local value = GetExampleValue()
    	if ns.IsSecret(value) then
-   		value = nil
+   		value = nil -- shown as the placeholder until the restriction lifts
    	end
    	if value == shown then return end
    	shown = value
    	dataobj.text = value and tostring(value) or ns.PLACEHOLDER_TEXT
    end
 
+   -- Read on the next frame: bursts of events coalesce, and a restriction that is
+   -- starting is enforced only after its ADDON_RESTRICTION_STATE_CHANGED dispatch.
+   local function QueueUpdate()
+   	if updateQueued then return end
+   	updateQueued = true
+   	C_Timer.After(0, Update)
+   end
+
    local eventFrame = CreateFrame("Frame")
-   eventFrame:SetScript("OnEvent", Update)
+   eventFrame:SetScript("OnEvent", QueueUpdate)
    eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+   eventFrame:RegisterEvent("ADDON_RESTRICTION_STATE_CHANGED")
+   -- Also register the events that report changes to the value itself.
    ```
+
+   `Brokers/ManaRegen.lua` follows this pattern for an API that can return secrets;
+   `Brokers/Resting.lua` shows the simpler case of an API that never does.
 
 2. List the file in `EllesmereMetrics.toc`, after `Core.lua`. The TOC is the only list
    of runtime files: packaging and tests read it.
