@@ -602,6 +602,11 @@ and says so in a comment on each pull request. Until this repository qualifies, 
 each review by ticking **Trigger review** in that comment or by commenting
 `@coderabbitai review`. The configuration applies to both kinds of review.
 
+Automatic approvals are on: CodeRabbit requests changes for blocking findings, and
+approves a pull request once it has reviewed the latest commit, its required threads are
+resolved and its pre-merge checks pass. After pushing fixes, request a new review so the
+latest commit gets reviewed. As the author, you can also comment `@coderabbitai approve`.
+
 ### One-time repository setup
 
 These steps need the repository owner and cannot be done from the repository files:

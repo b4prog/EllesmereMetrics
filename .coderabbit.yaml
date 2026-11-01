@@ -21,6 +21,10 @@ reviews:
   auto_review:
     enabled: true
     drafts: false
+  # Approve once the latest commit is reviewed and its threads are resolved;
+  # request changes for blocking findings.
+  auto_approvals:
+    enabled: true
   path_filters:
     - "!build/**"
     - "!dist/**"
