@@ -465,8 +465,9 @@ restrictions.
 ### Dependabot
 
 [`.github/dependabot.yml`](.github/dependabot.yml) checks the GitHub Actions used by the
-workflow every week and groups updates into a single pull request. Dependabot reads the
-file from the default branch, so version updates start once it is merged into `main`.
+workflow every Monday at 06:00 Paris time (`Europe/Paris`, so the hour follows daylight
+saving time) and groups updates into a single pull request. Dependabot reads the file
+from the default branch, so version updates start once it is merged into `main`.
 
 ### CodeRabbit
 
