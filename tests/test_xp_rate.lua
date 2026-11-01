@@ -174,19 +174,40 @@ test("stops the ticker on reaching the maximum level", function()
 	equal(client:ActiveTickers(), 0, "tickers")
 end)
 
-test("pauses while XP gains are off, then starts a new session", function()
+test("pauses without ticking while XP gains are off, then starts a new session", function()
 	local client, broker = LoggedIn(2000, 7576)
 	client:Advance(600)
 	GainXP(client, 2680)
 	client.xpDisabled = true
-	client:Advance(10)
+	client:Fire("DISABLE_XP_GAIN")
+	client:NextFrame()
 	equal(broker.text, "XP off")
+	equal(client:ActiveTickers(), 0, "tickers while XP is off")
 	contains(client:TooltipText(NAME), "turned off")
 	client.xpDisabled = false
-	client:Advance(10)
+	client:Fire("ENABLE_XP_GAIN")
+	client:NextFrame()
 	equal(broker.text, Text("--", "--"), "a new session warms up")
+	equal(client:ActiveTickers(), 1, "tickers once XP is back on")
 	client:Advance(60)
 	equal(broker.text, Text("0", "--"), "the earlier XP no longer counts")
+end)
+
+test("notices XP gains turned off on the next tick too", function()
+	local client, broker = LoggedIn(2000, 7576)
+	client.xpDisabled = true
+	client:Advance(1)
+	equal(broker.text, "XP off")
+	equal(client:ActiveTickers(), 0, "tickers")
+end)
+
+test("never ticks when XP gains are off at login", function()
+	local client = wow.Load()
+	client.xpDisabled = true
+	client:Fire("PLAYER_ENTERING_WORLD", true, false)
+	client:NextFrame()
+	equal(client:Broker(NAME).text, "XP off")
+	equal(client:ActiveTickers(), 0, "tickers")
 end)
 
 test("ignores XP updates about other units", function()

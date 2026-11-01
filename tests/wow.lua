@@ -16,6 +16,8 @@ wow.RestrictionState = { Inactive = 0, Activating = 1, Active = 2 }
 -- does this mock. Add an event only once warcraft.wiki.gg lists it for Forever.
 local KNOWN_EVENTS = {
 	ADDON_RESTRICTION_STATE_CHANGED = true,
+	DISABLE_XP_GAIN = true,
+	ENABLE_XP_GAIN = true,
 	PLAYER_ENTERING_WORLD = true,
 	PLAYER_EQUIPMENT_CHANGED = true,
 	PLAYER_LEVEL_UP = true,

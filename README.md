@@ -393,7 +393,9 @@ Turn on Lua error display first with `/console scriptErrors 1`, then:
 13. Level up: the pace keeps counting instead of falling back to zero. Then `/reload`:
     a new session starts at `-- XP/h · --`.
 14. Log in with a character at the level cap: XP Rate shows `Max level`.
-15. Hover each block: the tooltips match the descriptions above.
+15. If your character can turn experience gains off, do so: XP Rate shows `XP off`
+    right away. Turn them back on: a new session starts at `-- XP/h · --`.
+16. Hover each block: the tooltips match the descriptions above.
 
 Testers can also try `/console addonCombatRestrictionsForced 1`, a test setting of the
 modern WoW engine that applies combat restrictions outside combat, and

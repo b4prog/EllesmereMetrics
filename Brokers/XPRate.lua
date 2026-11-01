@@ -7,8 +7,8 @@
 -- on. The pace is the XP gained since then divided by the time elapsed, so time
 -- without XP lowers it; it shows once WARMUP_SECONDS have passed. Both numbers
 -- move with time alone, so besides the XP events a ticker refreshes them every
--- TICK_SECONDS until the character reaches the maximum level. UnitXP, UnitXPMax
--- and UnitLevel carry no secret-value predicate on WoW Forever 1.60.1.
+-- TICK_SECONDS while the character can gain XP. UnitXP, UnitXPMax and UnitLevel
+-- carry no secret-value predicate on WoW Forever 1.60.1.
 
 local _, ns = ...
 
@@ -149,25 +149,26 @@ local function StopTicker()
 	ticker = nil
 end
 
--- No session runs at the maximum level or with XP gains off; the text says why.
+-- No session runs at the maximum level or with XP gains off: the text says why,
+-- and the ticker stops, since nothing then changes with time.
 local function Pause(reason)
+	StopTicker()
 	state, sessionStart = reason, nil
 	Publish(PAUSED_TEXT[reason])
 end
 
--- Reads the game and refreshes the text: on the frame after an XP event, and
--- on every tick.
+-- Reads the game and refreshes the text: on the frame after an event, and on
+-- every tick while a session runs.
 local function Update()
 	if UnitLevel("player") >= GetMaxLevelForPlayerExpansion() then
-		StopTicker()
 		Pause("maxLevel")
 		return
 	end
-	ticker = ticker or C_Timer.NewTicker(TICK_SECONDS, Update)
 	if C_PlayerInfo.IsXPUserDisabled() then
 		Pause("xpOff")
 		return
 	end
+	ticker = ticker or C_Timer.NewTicker(TICK_SECONDS, Update)
 	if sessionStart then
 		TrackXP()
 	else
@@ -184,3 +185,6 @@ eventFrame:SetScript("OnEvent", ns.NextFrameUpdater(Update))
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterUnitEvent("PLAYER_XP_UPDATE", "player")
 eventFrame:RegisterEvent("PLAYER_LEVEL_UP")
+-- XP gains turned off or back on: no tick runs while they are off.
+eventFrame:RegisterEvent("DISABLE_XP_GAIN")
+eventFrame:RegisterEvent("ENABLE_XP_GAIN")
