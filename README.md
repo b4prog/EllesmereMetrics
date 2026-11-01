@@ -453,10 +453,15 @@ file from the default branch, so version updates start once it is merged into `m
 ### CodeRabbit
 
 [`.coderabbit.yaml`](.coderabbit.yaml) configures [CodeRabbit](https://www.coderabbit.ai)
-to review pull requests targeting `main` automatically (drafts excluded), with
-project-specific guidance on Lua 5.1, WoW Forever APIs, secret values, events,
-performance, the LibDataBroker contract and packaging. CodeRabbit also reads `AGENTS.md`
-as coding guidelines. No GitHub workflow is involved: CodeRabbit runs as a GitHub App.
+reviews of pull requests targeting `main` (drafts excluded), with project-specific
+guidance on Lua 5.1, WoW Forever APIs, secret values, events, performance, the
+LibDataBroker contract and packaging. CodeRabbit also reads `AGENTS.md` as coding
+guidelines. No GitHub workflow is involved: CodeRabbit runs as a GitHub App.
+
+CodeRabbit currently skips automatic reviews on repositories with fewer than 10 stars,
+and says so in a comment on each pull request. Until this repository qualifies, request
+each review by ticking **Trigger review** in that comment or by commenting
+`@coderabbitai review`. The configuration applies to both kinds of review.
 
 ### One-time repository setup
 
@@ -471,8 +476,8 @@ These steps need the repository owner and cannot be done from the repository fil
 3. **CodeRabbit**: sign in at [app.coderabbit.ai](https://app.coderabbit.ai) with GitHub
    and install the CodeRabbit GitHub App for `b4prog/EllesmereMetrics` (choosing **Only
    select repositories** keeps its access limited). Check CodeRabbit's current plans for
-   pricing. Reviews then start on the next pull request; comment
-   `@coderabbitai review` on a pull request to request one manually.
+   pricing. CodeRabbit then comments on every new pull request; whether it reviews
+   automatically depends on its eligibility rules (see [CodeRabbit](#coderabbit)).
 
 ## License
 
