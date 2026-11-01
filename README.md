@@ -267,6 +267,26 @@ text: in `/eui`, select **Action Bars** under **Core Addons**, open the **XP Bar
 and choose **Leveling In** for a text in **CORE TEXT POSITIONS**. It reads like
 `Leveling in: 1h 12m (4,080 XP/Hour)` and appears inside that bar.
 
+### Show your mana regeneration beside the mana bar
+
+EllesmereUI's mana bars (Unit Frames and Resource Bars) only display their own text, so
+no addon can write inside them. A small DataBar can sit right against one instead:
+
+1. In **DataBars**, click **+ New Bar** and choose **Start Empty**.
+2. Click the **+** tile, choose **Broker Plugin**, and select
+   `EllesmereMetrics_ManaRegen` in the **Plugin** dropdown. Turn **Show Icon** off for
+   text only.
+3. To make the bar blend in, set **Bar Opacity** to `0`, which hides only its
+   background, and turn on **Hide Border**.
+4. Open unlock mode with `/unlock` (or the unlock-mode button next to the **BAR
+   SETTINGS** heading), then drag and resize the bar against your mana bar.
+5. To draw the bar over the mana bar rather than beside it, raise its **Bar Strata**:
+   click the cog next to **Visibility** to open **Bar Layer**. This overlay has not been
+   tested in game; check that it does not cover anything you need.
+
+The block changes as soon as the game reports new rates (after a change of stats, buffs,
+gear or talents) or hides them in combat, so it needs no refresh interval of its own.
+
 ## Usage examples
 
 The numbers below are only examples. Your values depend on your character's class,
