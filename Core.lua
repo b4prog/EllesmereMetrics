@@ -1,8 +1,11 @@
 -- Core.lua
 -- Shared plumbing for the brokers in Brokers\: the LibDataBroker-1.1 instance
--- EllesmereUI ships, the secret-value test, and small presentation helpers.
+-- EllesmereUI ships, the secret-value test, the next-frame updater and small
+-- presentation helpers.
 
 local ADDON_NAME, ns = ...
+
+local C_Timer = C_Timer
 
 -- EllesmereUI, the required dependency, embeds LibStub, CallbackHandler-1.0 and
 -- LibDataBroker-1.1 and always loads first. The lookup is silent so a broken
@@ -49,4 +52,21 @@ end
 -- Adds one grey, word-wrapped explanation line to a tooltip.
 function ns.AddNote(tooltip, text)
 	tooltip:AddLine(text, NOTE_R, NOTE_G, NOTE_B, true)
+end
+
+-- Returns a function that runs `update` once on the next frame, however often it
+-- is called before then. As an OnEvent handler it turns a burst of events into a
+-- single read, taken after the dispatch: a restriction announced by
+-- ADDON_RESTRICTION_STATE_CHANGED is enforced only once that dispatch ends.
+function ns.NextFrameUpdater(update)
+	local queued = false
+	local function Run()
+		queued = false
+		update()
+	end
+	return function()
+		if queued then return end
+		queued = true
+		C_Timer.After(0, Run)
+	end
 end
