@@ -14,7 +14,6 @@
 
 local _, ns = ...
 
-local C_Timer = C_Timer
 local GetManaRegen = GetManaRegen
 local UnitPowerMax = UnitPowerMax
 local format = string.format
@@ -105,25 +104,10 @@ local function Update()
 	end
 end
 
-local updateQueued = false
-
-local function RunQueuedUpdate()
-	updateQueued = false
-	Update()
-end
-
 -- Each event queues one read for the next frame. That coalesces bursts (a gear
--- swap fires several of these events at once) and lets restriction edges settle:
--- an activating restriction is enforced only once the dispatch of its
--- ADDON_RESTRICTION_STATE_CHANGED has finished.
-local function QueueUpdate()
-	if updateQueued then return end
-	updateQueued = true
-	C_Timer.After(0, RunQueuedUpdate)
-end
-
+-- swap fires several of these events at once) and lets restriction edges settle.
 local eventFrame = CreateFrame("Frame")
-eventFrame:SetScript("OnEvent", QueueUpdate)
+eventFrame:SetScript("OnEvent", ns.NextFrameUpdater(Update))
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 -- Regeneration follows stats, gear, auras (some buffs change it without any stat
 -- event) and talents.

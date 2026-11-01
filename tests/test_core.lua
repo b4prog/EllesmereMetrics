@@ -9,6 +9,7 @@ local test, equal, truthy, contains = testing.test, testing.equal, testing.truth
 
 local MANA = "EllesmereMetrics_ManaRegen"
 local RESTING = "EllesmereMetrics_Resting"
+local XP_RATE = "EllesmereMetrics_XPRate"
 
 local function ReadFile(path)
 	local handle = assert(io.open(path, "rb"))
@@ -24,7 +25,7 @@ test("the TOC targets WoW Forever 1.60.1 and requires EllesmereUI", function()
 	equal(metadata.Title, "EllesmereMetrics", "Title")
 	truthy((metadata.Version or ""):match("^%d+%.%d+%.%d+$"), "Version is MAJOR.MINOR.PATCH")
 	equal(files[1], "Core.lua", "Core.lua loads first")
-	equal(#files, 3, "TOC file count")
+	equal(#files, 4, "TOC file count")
 end)
 
 test("runtime files are ASCII, LF-terminated and tab-indented", function()
@@ -40,15 +41,14 @@ test("runtime files are ASCII, LF-terminated and tab-indented", function()
 	end
 end)
 
-test("registers both brokers under the names DataBars lists", function()
+test("registers every broker under the names DataBars lists", function()
 	local client = wow.Load()
 	local names = {}
 	for name in client.ldb:DataObjectIterator() do
 		names[#names + 1] = name
 	end
 	table.sort(names)
-	equal(table.concat(names, ", "), MANA .. ", " .. RESTING)
-
+	equal(table.concat(names, ", "), MANA .. ", " .. RESTING .. ", " .. XP_RATE)
 	for _, name in ipairs(names) do
 		local broker = client:Broker(name)
 		equal(broker.type, "data source", name .. " type")
@@ -59,6 +59,7 @@ test("registers both brokers under the names DataBars lists", function()
 	end
 	equal(client:Broker(MANA).label, "Mana Regen")
 	equal(client:Broker(RESTING).label, "Resting Area")
+	equal(client:Broker(XP_RATE).label, "XP Rate")
 	equal(#client.printed, 0, "nothing printed")
 end)
 
@@ -75,10 +76,17 @@ test("defines no globals and reads only known APIs", function()
 	client:Fire("SPELLS_CHANGED")
 	client:Fire("ADDON_RESTRICTION_STATE_CHANGED", wow.Restriction.Combat, wow.RestrictionState.Inactive)
 	client:NextFrame()
+	client.xp, client.level = 50, 11
+	client:Fire("PLAYER_XP_UPDATE", "player")
+	client:Fire("PLAYER_LEVEL_UP", 11)
+	client:NextFrame()
+	client:Advance(60)
 	client:TooltipText(MANA)
 	client:TooltipText(RESTING)
+	client:TooltipText(XP_RATE)
 	equal(client:Broker(MANA).text, "10.0/s | 2.0/s")
 	equal(client:Broker(RESTING).text, "Not Resting")
+	equal(client:Broker(XP_RATE).text, "63.0k XP/h \194\183 1m")
 end)
 
 test("warns once and sets nothing up without LibDataBroker-1.1", function()
@@ -98,7 +106,7 @@ test("warns and leaves a broker name another addon took alone", function()
 	client:Fire("PLAYER_ENTERING_WORLD", true, false)
 	client:Fire("PLAYER_UPDATE_RESTING")
 	equal(client:Broker(RESTING).text, "taken", "and stays untouched")
-	equal(#client.frames, 1, "only the mana broker listens for events")
+	equal(#client.frames, 2, "only the other two brokers listen for events")
 end)
 
 test("treats every value as readable on an engine without secrets", function()

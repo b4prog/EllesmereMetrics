@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: EllesmereMetrics
-## Notes: Unofficial EllesmereUI companion: mana regeneration and resting-area plugins for DataBars.
+## Notes: Unofficial EllesmereUI companion: mana regeneration, resting-area and XP rate plugins for DataBars.
 ## Author: b4prog
 ## Version: 0.1.0
 ## Dependencies: EllesmereUI
@@ -14,3 +14,4 @@ Core.lua
 # One LibDataBroker data object per file.
 Brokers\ManaRegen.lua
 Brokers\Resting.lua
+Brokers\XPRate.lua
