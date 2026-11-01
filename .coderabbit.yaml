@@ -61,7 +61,7 @@ reviews:
         - Updates must stay event-driven: no OnUpdate scripts, unit events through
           RegisterUnitEvent(event, "player"), event reads through
           ns.NextFrameUpdater. The only allowed ticker is one C_Timer.NewTicker of
-          10 seconds or more for a value that changes with time alone (XP Rate),
+          1 second or more for a value that changes with time alone (XP Rate),
           cancelled once it can no longer change. Event names must exist on Forever.
         - Flag avoidable allocations or string formatting in frequently fired
           handlers such as UNIT_AURA.

@@ -49,7 +49,7 @@ game events ---> EllesmereMetrics ---> LibDataBroker ---> DataBars "Broker Plugi
 
 EllesmereMetrics relies on the copy of LibDataBroker that EllesmereUI already ships, so
 it adds no libraries of its own. It reacts to game events instead of checking
-continuously; only XP Rate also refreshes every 10 seconds, because its numbers change
+continuously; only XP Rate also refreshes every second, because its numbers change
 with time. It costs next to nothing while you play.
 
 ## Features
@@ -134,7 +134,7 @@ at that pace. For example, `4.08k XP/h · 1h12m` reads:
   a long break.
 - **The first minute shows `-- XP/h · --`**, so one early kill does not produce an
   absurd pace. After that, `0 XP/h · --` means no XP has come in yet this session.
-- **It stays current**: it updates as soon as you gain XP, and every 10 seconds
+- **It stays current**: it updates as soon as you gain XP, and every second
   otherwise, since both numbers move with the clock.
 - **`Max level`** replaces it at the level cap, where it stops refreshing. **`XP off`**
   replaces it while experience gains are turned off; a new session starts once they

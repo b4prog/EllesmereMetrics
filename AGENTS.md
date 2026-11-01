@@ -74,7 +74,7 @@ file holds the rules for changing the code.
 - Event-driven; unit events via `RegisterUnitEvent(event, "player")`.
 - Handle events with `ns.NextFrameUpdater(update)`: one read on the next frame per burst.
 - No polling, except for a value that changes with elapsed time alone (XP Rate):
-  one `C_Timer.NewTicker` of 10 seconds or more, cancelled once the value can no
+  one `C_Timer.NewTicker` of 1 second or more, cancelled once the value can no
   longer change.
 - The client raises an error on unknown event names. Add each new event to
   `KNOWN_EVENTS` in `tests/wow.lua` once it is verified for Forever.

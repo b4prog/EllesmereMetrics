@@ -23,7 +23,7 @@ local floor = math.floor
 local format = string.format
 
 local ICON = "Interface\\Icons\\INV_Misc_PocketWatch_01"
-local TICK_SECONDS = 10
+local TICK_SECONDS = 1
 local WARMUP_SECONDS = 60
 -- " . " with a UTF-8 middle dot, written as escapes so the file stays ASCII.
 local SEPARATOR = " \194\183 "
