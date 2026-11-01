@@ -43,8 +43,8 @@ file holds the rules for changing the code.
 
 ## LibDataBroker and DataBars contract
 
-- Broker names (`EllesmereMetrics_ManaRegen`, `EllesmereMetrics_Resting`) are
-  saved in users' DataBars profiles. Never rename one.
+- Broker names (`EllesmereMetrics_ManaRegen`, `EllesmereMetrics_Resting`,
+  `EllesmereMetrics_XPRate`) are saved in users' DataBars profiles. Never rename one.
 - Register through `ns.NewBroker(name, attributes)`, which sets
   `type = "data source"` and the icon crop. Use stock `Interface\Icons\` art.
 - DataBars repaints on `LibDataBroker_AttributeChanged_<name>` for `text`,
@@ -66,12 +66,16 @@ file holds the rules for changing the code.
   never try to get around a restriction.
 - Restriction edges arrive as `ADDON_RESTRICTION_STATE_CHANGED`. Re-read on the
   next frame: an activating restriction is enforced only after that dispatch.
-- `IsResting()` has no secret predicate on 1.60.1. Check each new API's page.
+- `IsResting()`, `UnitXP()`, `UnitXPMax()` and `UnitLevel()` have no secret
+  predicate on 1.60.1. Check each new API's page.
 
 ## Events and performance
 
-- Event-driven only; unit events via `RegisterUnitEvent(event, "player")`.
-- At most one queued `C_Timer.After(0, ...)` re-read per burst; no tickers or polling.
+- Event-driven; unit events via `RegisterUnitEvent(event, "player")`.
+- Handle events with `ns.NextFrameUpdater(update)`: one read on the next frame per burst.
+- No polling, except for a value that changes with elapsed time alone (XP Rate):
+  one `C_Timer.NewTicker` of 10 seconds or more, cancelled once the value can no
+  longer change.
 - The client raises an error on unknown event names. Add each new event to
   `KNOWN_EVENTS` in `tests/wow.lua` once it is verified for Forever.
 

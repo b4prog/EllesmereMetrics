@@ -58,9 +58,11 @@ reviews:
           comparison, arithmetic, formatting, concatenation, indexing or publishing.
           type() does not detect secrets. Flag any path that shows a stale value as
           current or tries to work around a restriction.
-        - Updates must stay event-driven: no OnUpdate scripts or polling tickers,
-          unit events through RegisterUnitEvent(event, "player"), at most one
-          C_Timer.After(0) per burst. Event names must exist on Forever.
+        - Updates must stay event-driven: no OnUpdate scripts, unit events through
+          RegisterUnitEvent(event, "player"), event reads through
+          ns.NextFrameUpdater. The only allowed ticker is one C_Timer.NewTicker of
+          10 seconds or more for a value that changes with time alone (XP Rate),
+          cancelled once it can no longer change. Event names must exist on Forever.
         - Flag avoidable allocations or string formatting in frequently fired
           handlers such as UNIT_AURA.
         - Indentation is one tab per level; Lua files are ASCII only.
@@ -75,6 +77,8 @@ reviews:
           EllesmereUI code. Brokers must not depend on each other.
         - Mana Regen shows the rates GetManaRegen reports, never "instant" gain.
           Resting uses IsResting only, not GetXPExhaustion or GetRestState.
+          XP Rate averages the current session (login, /reload or XP turned back
+          on), counts a level-up exactly once and keeps nothing between sessions.
     - path: "EllesmereMetrics.toc"
       instructions: |
         Interface must stay 16001 (WoW Forever 1.60.1) and Dependencies must keep

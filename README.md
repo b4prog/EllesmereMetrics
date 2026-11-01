@@ -3,10 +3,11 @@
 [![CI](https://github.com/b4prog/EllesmereMetrics/actions/workflows/ci.yml/badge.svg)](https://github.com/b4prog/EllesmereMetrics/actions/workflows/ci.yml)
 
 EllesmereMetrics adds extra character information to the **EllesmereUI DataBars** of
-**World of Warcraft: Forever**. It currently provides two indicators:
+**World of Warcraft: Forever**. It currently provides three indicators:
 
 - **Mana Regen**: your character's mana regeneration rates, in mana per second.
 - **Resting Area**: whether your character is standing where rested XP builds up.
+- **XP Rate**: the experience you gain per hour and the time left to your next level.
 
 > [!NOTE]
 > EllesmereMetrics is an **unofficial** companion addon. It is not made, endorsed or
@@ -37,18 +38,19 @@ lets an addon share a small piece of text, an icon and a tooltip with any compat
 display.
 
 EllesmereMetrics uses that mechanism. It does not change EllesmereUI or draw any
-frames of its own: it registers two LibDataBroker data objects, keeps their text up to
-date, and DataBars shows them wherever you place a Broker Plugin block.
+frames of its own: it registers three LibDataBroker data objects, keeps their text up
+to date, and DataBars shows them wherever you place a Broker Plugin block.
 
 ```text
 game events ---> EllesmereMetrics ---> LibDataBroker ---> DataBars "Broker Plugin" block
 (stats, auras,   reads the game API,   notifies every     redraws its text, icon
- resting areas)  updates its text      display            and tooltip
+ XP, resting)    updates its text      display            and tooltip
 ```
 
 EllesmereMetrics relies on the copy of LibDataBroker that EllesmereUI already ships, so
 it adds no libraries of its own. It reacts to game events instead of checking
-continuously, so it costs next to nothing while you play.
+continuously; only XP Rate also refreshes every 10 seconds, because its numbers change
+with time. It costs next to nothing while you play.
 
 ## Features
 
@@ -112,6 +114,39 @@ The tooltip repeats this distinction. EllesmereUI's Clock block has an optional
 "Resting Icon"; this broker is a separate, text-based indicator you can place anywhere
 on a bar.
 
+### XP Rate
+
+Data broker name: `EllesmereMetrics_XPRate` (label `XP Rate`).
+
+It shows how fast your character gains experience, and how long the next level takes
+at that pace. For example, `4.08k XP/h · 1h12m` reads:
+
+| Part | Meaning |
+| --- | --- |
+| `4.08k XP/h` | 4,080 XP gained per hour this session. Large values keep three digits: `850`, `4.08k`, `40.8k`, `1.23M`. |
+| `1h12m` | 1 hour 12 minutes to the next level if you keep that pace. Short waits read `45m` or `<1m`, long ones `1d3h`. |
+
+- **It averages the current session.** The pace is the XP gained since you logged in
+  or reloaded the UI, divided by the time since then. Kills, quests and other gains
+  all count, including the XP that carries over into a new level.
+- **Time without XP counts.** The pace drops while you are away, travel or shop, and
+  the time to level grows. Type `/reload` to start a fresh session, for example after
+  a long break.
+- **The first minute shows `-- XP/h · --`**, so one early kill does not produce an
+  absurd pace. After that, `0 XP/h · --` means no XP has come in yet this session.
+- **It stays current**: it updates as soon as you gain XP, and every 10 seconds
+  otherwise, since both numbers move with the clock.
+- **`Max level`** replaces it at the level cap, where it stops refreshing. **`XP off`**
+  replaces it while experience gains are turned off; a new session starts once they
+  are back on.
+- Nothing is saved between sessions.
+
+> EllesmereUI's **Action Bars** XP bar can show similar figures on its own: its XP Bar
+> page offers "XP per Hour" and "Leveling In" text items. That bar only displays its own
+> items, so this broker cannot be placed inside it. Use it in DataBars instead, for
+> example beside the XP / Reputation Bar block, as described in
+> [Show your XP pace beside the XP bar](#show-your-xp-pace-beside-the-xp-bar).
+
 ## Requirements
 
 - **World of Warcraft: Forever**, client **1.60.1** (addon interface `16001`).
@@ -155,7 +190,7 @@ are not supported.
    EllesmereMetrics lists EllesmereUI as a dependency, so it stays disabled without it.
 6. **Enter the world** with any character.
 7. **Check that it loaded.** Type `/dump C_AddOns.IsAddOnLoaded("EllesmereMetrics")` in
-   chat: both values it prints should be `true`. The two brokers then appear in the
+   chat: both values it prints should be `true`. The brokers then appear in the
    DataBars plugin list (next section). EllesmereMetrics prints nothing in chat unless
    something is wrong.
 
@@ -175,11 +210,11 @@ EllesmereUI versions may rename or move them. Settings cannot be opened during c
    **Plugin** dropdown, which pulses until a plugin is chosen.
 5. **Select `EllesmereMetrics_ManaRegen`** in the **Plugin** dropdown. The dropdown is
    searchable; the entry reads `EllesmereMetrics_ManaRegen (Mana Regen)`.
-6. **Add a second Broker Plugin block** the same way (the **+** tile, then **Broker
-   Plugin**). Each block shows one plugin.
-7. **Select `EllesmereMetrics_Resting`**, listed as
-   `EllesmereMetrics_Resting (Resting Area)`.
-8. **Adjust each block** with the options DataBars offers:
+6. **Add one Broker Plugin block per other plugin** the same way (the **+** tile, then
+   **Broker Plugin**), since each block shows one plugin. Select
+   `EllesmereMetrics_Resting`, listed as `EllesmereMetrics_Resting (Resting Area)`, and
+   `EllesmereMetrics_XPRate`, listed as `EllesmereMetrics_XPRate (XP Rate)`.
+7. **Adjust each block** with the options DataBars offers:
 
    | Option | Effect |
    | --- | --- |
@@ -187,7 +222,7 @@ EllesmereUI versions may rename or move them. Settings cannot be opened during c
    | **Show Text** | Shows the plugin's text; off leaves an icon-only block that keeps the tooltip. |
    | **Show Label** | Puts the plugin's label in front of the text, e.g. `Mana Regen: 85.2/s \| 34.5/s`. |
    | **Strip Colors** | Removes color codes from the plugin's text. EllesmereMetrics uses none, so this changes nothing for it. |
-   | **Max Width** | Holds the block at a fixed width. Useful for Mana Regen, whose text width changes with the numbers. `0` sizes the block to its text. |
+   | **Max Width** | Holds the block at a fixed width. Useful for Mana Regen and XP Rate, whose text width changes with the numbers. `0` sizes the block to its text. |
    | **Text Color**, **Icon Color** | Block colors. An explicit Icon Color replaces the Resting Area icon dimming; the text still shows the state. |
 
    To reorder blocks, drag them in the bar preview. Bar size and visibility are in the
@@ -200,6 +235,37 @@ starting with `EllesmereMetrics:`. The addon can load and still register nothing
 example when it cannot find the LibDataBroker-1.1 library that EllesmereUI provides; in
 that case reinstall or update EllesmereUI. A block whose plugin is no longer loaded hides
 itself and shows as "not loaded" in its dropdown.
+
+### Show your XP pace beside the XP bar
+
+DataBars can show an experience bar with its **XP / Reputation Bar** block. To read
+`4.08k XP/h · 1h12m` right beside it:
+
+1. In **DataBars**, select the bar that holds the **XP / Reputation Bar** block. The
+   **Top/Bottom Info Bar** template includes one. On another bar, add it with the **+**
+   tile and **XP / Reputation Bar**.
+2. Click the **+** tile, choose **Broker Plugin**, and select `EllesmereMetrics_XPRate`
+   in the **Plugin** dropdown.
+3. In the bar preview, drag the new block next to the **XP / Reputation Bar** block, on
+   either side.
+4. Optionally, set a **Max Width** (around 130 is a starting point) so its neighbors do
+   not shift when the text changes length. Leave **Show Label** off for the compact
+   text; with it on, the block reads `XP Rate: 4.08k XP/h · 1h12m`.
+
+The bar then reads something like this, with the XP / Reputation Bar block's own
+default text on the left:
+
+```text
+42% to level 21 ▓▓▓▓▓▓▓▓░░░░░░░░░░░   [icon] 4.08k XP/h · 1h12m
+```
+
+At the level cap the XP / Reputation Bar block switches to reputation and the XP Rate
+block shows `Max level`; remove the block then if you prefer.
+
+Without EllesmereMetrics, EllesmereUI's **Action Bars** XP bar has a comparable built-in
+text: in `/eui`, select **Action Bars** under **Core Addons**, open the **XP Bar** page,
+and choose **Leveling In** for a text in **CORE TEXT POSITIONS**. It reads like
+`Leveling in: 1h 12m (4,080 XP/Hour)` and appears inside that bar.
 
 ## Usage examples
 
@@ -239,6 +305,29 @@ Resting Area block:
 [icon] Not Resting   anywhere else (dimmed icon)
 ```
 
+XP Rate block:
+
+```text
+[icon] 4.08k XP/h · 1h12m   4,080 XP per hour; the next level in 1 hour 12 minutes
+[icon] -- XP/h · --         the session's first minute
+[icon] 0 XP/h · --          no XP gained yet this session
+[icon] Max level            at the level cap
+[icon] XP off               experience gains are turned off
+```
+
+Its tooltip:
+
+```text
+XP Rate
+XP per hour                    4.08k
+Next level in                  1h12m
+XP this session                  680
+Session length                   10m
+
+Average since you logged in, reloaded the UI or turned XP gains back on. Time
+without XP lowers it; /reload starts a new session.
+```
+
 ## Known limitations
 
 - **Restricted statistics.** While the game restricts character statistics, Mana Regen
@@ -247,6 +336,8 @@ Resting Area block:
   restriction ends.
 - **Rates, not measurements.** Mana Regen shows the rates `GetManaRegen()` reports. It
   does not track the five-second rule, server regeneration ticks, drinking or potions.
+- **XP Rate is a session average.** It starts over at every login and `/reload`,
+  counts idle time, and keeps nothing between sessions.
 - **Not yet verified in game.** This version has not been tested in the WoW Forever
   client. The automated tests run against a simulated client and cannot prove how the
   real one behaves, in particular how it restricts statistics in each situation. Use
@@ -258,7 +349,8 @@ Resting Area block:
 
 Turn on Lua error display first with `/console scriptErrors 1`, then:
 
-1. Log in with a mana user (for example a Mage) and add both blocks as described above.
+1. Log in with a mana user below the level cap (for example a Mage) and add the three
+   blocks as described above.
 2. Out of combat, compare the Mana Regen block with `/dump GetManaRegen()`: the two
    numbers should match, rounded to one decimal.
 3. Change something that affects regeneration: take off or put on gear with Spirit or
@@ -272,7 +364,16 @@ Turn on Lua error display first with `/console scriptErrors 1`, then:
    out: it switches to `Not Resting` and the icon dims. Repeat in a major city.
 9. Log out inside an inn and log back in: the block shows `Resting` right after
    loading.
-10. Hover each block: the tooltips match the descriptions above.
+10. Right after logging in, XP Rate shows `-- XP/h · --`, then `0 XP/h · --` once a
+    minute has passed without XP.
+11. Kill a few enemies or turn in a quest: the pace and the time to level appear. The
+    pace should match the XP gained divided by the minutes since login, times 60.
+12. Stay idle for a few minutes: the pace drops and the time to level grows, without
+    any XP event.
+13. Level up: the pace keeps counting instead of falling back to zero. Then `/reload`:
+    a new session starts at `-- XP/h · --`.
+14. Log in with a character at the level cap: XP Rate shows `Max level`.
+15. Hover each block: the tooltips match the descriptions above.
 
 Testers can also try `/console addonCombatRestrictionsForced 1`, a test setting of the
 modern WoW engine that applies combat restrictions outside combat, and
@@ -316,7 +417,8 @@ EllesmereMetrics/
 ├── Core.lua                   shared helpers, LibDataBroker lookup
 ├── Brokers/
 │   ├── ManaRegen.lua          EllesmereMetrics_ManaRegen
-│   └── Resting.lua            EllesmereMetrics_Resting
+│   ├── Resting.lua            EllesmereMetrics_Resting
+│   └── XPRate.lua             EllesmereMetrics_XPRate
 ├── tests/
 │   ├── run.lua                test runner and assertions
 │   ├── wow.lua                simulated WoW client
@@ -333,8 +435,8 @@ EllesmereMetrics/
 └── LICENSE
 ```
 
-`Core.lua` loads first and provides `ns.NewBroker`, `ns.IsSecret`, `ns.AddNote` and
-`ns.PLACEHOLDER_TEXT` to the brokers. Each file in `Brokers/` owns one data object, its
+`Core.lua` loads first and provides `ns.NewBroker`, `ns.IsSecret`, `ns.NextFrameUpdater`,
+`ns.AddNote` and `ns.PLACEHOLDER_TEXT` to the brokers. Each file in `Brokers/` owns one data object, its
 state, its events and its tooltip; brokers never depend on one another.
 
 ### Adding a data broker
@@ -358,10 +460,8 @@ state, its events and its tooltip; brokers never depend on one another.
    if not dataobj then return end
 
    local shown
-   local updateQueued = false
 
    local function Update()
-   	updateQueued = false
    	local value = GetExampleValue()
    	if ns.IsSecret(value) then
    		value = nil -- shown as the placeholder until the restriction lifts
@@ -371,23 +471,18 @@ state, its events and its tooltip; brokers never depend on one another.
    	dataobj.text = value and tostring(value) or ns.PLACEHOLDER_TEXT
    end
 
-   -- Read on the next frame: bursts of events coalesce, and a restriction that is
-   -- starting is enforced only after its ADDON_RESTRICTION_STATE_CHANGED dispatch.
-   local function QueueUpdate()
-   	if updateQueued then return end
-   	updateQueued = true
-   	C_Timer.After(0, Update)
-   end
-
+   -- One read on the next frame per burst of events, after the dispatch: a restriction
+   -- that is starting is enforced only once ADDON_RESTRICTION_STATE_CHANGED ends.
    local eventFrame = CreateFrame("Frame")
-   eventFrame:SetScript("OnEvent", QueueUpdate)
+   eventFrame:SetScript("OnEvent", ns.NextFrameUpdater(Update))
    eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
    eventFrame:RegisterEvent("ADDON_RESTRICTION_STATE_CHANGED")
    -- Also register the events that report changes to the value itself.
    ```
 
-   `Brokers/ManaRegen.lua` follows this pattern for an API that can return secrets;
+   `Brokers/ManaRegen.lua` follows this pattern for an API that can return secrets, and
    `Brokers/Resting.lua` shows the simpler case of an API that never does.
+   `Brokers/XPRate.lua` adds the one allowed ticker, for a value that changes with time.
 
 2. List the file in `EllesmereMetrics.toc`, after `Core.lua`. The TOC is the only list
    of runtime files: packaging and tests read it.
@@ -402,7 +497,8 @@ release. `AGENTS.md` lists the remaining rules.
 ### Tests and linting
 
 The tests run on a desktop Lua interpreter against a simulated client (`tests/wow.lua`)
-that provides the game functions the addon uses, events, timers, LibDataBroker and
+that provides the game functions the addon uses, events, timers on a simulated clock,
+LibDataBroker and
 *secret values*: placeholder objects that raise an error on arithmetic, ordering
 comparisons, indexing and similar operations, as the real game does for addon code. The
 simulation is stricter on one point: it also rejects formatting a secret, which the game
@@ -410,7 +506,9 @@ allows but the addon never needs. The simulated client also fails a
 test when the addon writes a global, reads an unknown global, registers an unknown
 event, or hands a secret to LibDataBroker. The suites cover broker registration, initial
 values, formatting, every refresh event, unchanged values, secret and invalid values,
-characters without mana, and entering and leaving resting areas.
+characters without mana, entering and leaving resting areas, and for XP Rate the
+session pace, level-ups, the time to level, the refresh ticker, the level cap and
+turned-off XP.
 
 A simulation cannot reproduce everything. For instance, plain Lua cannot make
 `secret == 0` raise an error the way the game does, so the order of checks is also

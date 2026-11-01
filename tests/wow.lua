@@ -1,8 +1,9 @@
 -- tests/wow.lua
 -- A stand-in for the parts of the WoW Forever client the addon touches: its API
--- functions, an event bus, C_Timer, LibStub with LibDataBroker-1.1, a
--- GameTooltip-like recorder and secret values. wow.Load() builds a fresh client
--- and runs the addon's TOC files in it, so tests never share state.
+-- functions, an event bus, C_Timer on a virtual clock, LibStub with
+-- LibDataBroker-1.1, a GameTooltip-like recorder and secret values. wow.Load()
+-- builds a fresh client and runs the addon's TOC files in it, so tests never
+-- share state.
 
 local wow = {}
 
@@ -17,7 +18,9 @@ local KNOWN_EVENTS = {
 	ADDON_RESTRICTION_STATE_CHANGED = true,
 	PLAYER_ENTERING_WORLD = true,
 	PLAYER_EQUIPMENT_CHANGED = true,
+	PLAYER_LEVEL_UP = true,
 	PLAYER_UPDATE_RESTING = true,
+	PLAYER_XP_UPDATE = true,
 	SPELLS_CHANGED = true,
 	UNIT_AURA = true,
 	UNIT_STATS = true,
@@ -219,6 +222,49 @@ local function Contains(list, value)
 end
 
 -------------------------------------------------------------------------------
+-- Timers
+-------------------------------------------------------------------------------
+-- C_Timer.After(0, ...) callbacks run at Client:NextFrame(). Tickers run on a
+-- virtual clock, which is also what GetTime() returns: Client:Advance(seconds)
+-- moves it forward and fires each ticker when it falls due. Creating more than
+-- MAX_TICKERS running tickers fails the test, so a leak cannot hang the suite.
+
+local MAX_TICKERS = 8
+
+local function NewTimerApi(client)
+	return {
+		After = function(seconds, callback)
+			assert(seconds == 0, "the mock only models next-frame timers")
+			assert(type(callback) == "function", "C_Timer.After needs a function")
+			client.timers[#client.timers + 1] = callback
+		end,
+		NewTicker = function(seconds, callback, iterations)
+			assert(type(seconds) == "number" and seconds > 0, "C_Timer.NewTicker needs a positive interval")
+			assert(type(callback) == "function", "C_Timer.NewTicker needs a function")
+			assert(iterations == nil, "the mock only models endless tickers")
+			assert(client:ActiveTickers() < MAX_TICKERS, "the addon keeps creating tickers")
+			local ticker = { interval = seconds, callback = callback, dueAt = client.now + seconds }
+			function ticker.Cancel(handle)
+				handle.cancelled = true
+			end
+			client.tickers[#client.tickers + 1] = ticker
+			return ticker
+		end,
+	}
+end
+
+-- The running ticker due first, at or before `limit`.
+local function NextDueTicker(tickers, limit)
+	local due
+	for _, ticker in ipairs(tickers) do
+		if not ticker.cancelled and ticker.dueAt <= limit and (not due or ticker.dueAt < due.dueAt) then
+			due = ticker
+		end
+	end
+	return due
+end
+
+-------------------------------------------------------------------------------
 -- Client
 -------------------------------------------------------------------------------
 
@@ -246,6 +292,28 @@ function Client:NextFrame()
 	for _, callback in ipairs(due) do
 		callback()
 	end
+end
+
+-- Moves GetTime() forward by `seconds`, firing every ticker that falls due on
+-- the way, in time order. A ticker cancelled meanwhile fires no more.
+function Client:Advance(seconds)
+	local target = self.now + seconds
+	local ticker = NextDueTicker(self.tickers, target)
+	while ticker do
+		self.now = ticker.dueAt
+		ticker.dueAt = ticker.dueAt + ticker.interval
+		ticker.callback(ticker)
+		ticker = NextDueTicker(self.tickers, target)
+	end
+	self.now = target
+end
+
+function Client:ActiveTickers()
+	local count = 0
+	for _, ticker in ipairs(self.tickers) do
+		if not ticker.cancelled then count = count + 1 end
+	end
+	return count
 end
 
 function Client:Broker(name)
@@ -309,41 +377,51 @@ local function LoadChunk(path, env)
 	return assert(loadfile(path, "t", env))
 end
 
--- Builds a fresh client and loads the addon into it. Options:
---   without = { "issecretvalue", ... }  globals this client lacks
---   withoutLibDataBroker = true         LibStub has no LibDataBroker-1.1
---   takenBrokerNames = { name, ... }    data objects another addon registered first
-function wow.Load(options)
-	options = options or {}
-	local client = setmetatable({
+-- A fresh client. The fields after `now` are what the mocked APIs return; tests
+-- change them between events.
+local function NewClient()
+	return setmetatable({
 		frames = {},
 		timers = {},
+		tickers = {},
 		writes = {},
 		printed = {},
-		calls = {},    -- API name -> number of calls
+		calls = {}, -- API name -> number of calls
 		lastArgs = {}, -- API name -> arguments of the latest call
 		checked = setmetatable({}, { __mode = "k" }), -- secrets passed to issecretvalue
-		-- What the mocked APIs return. Tests change these between events.
+		now = 0, -- GetTime(), moved by Client:Advance
 		maxMana = 1000,
 		normalRegen = 0,
 		castingRegen = 0,
 		resting = false,
 		restedXP = nil,
 		restState = 2,
+		level = 10,
+		maxLevel = 60,
+		xp = 0,
+		xpMax = 1000,
+		xpDisabled = false,
 	}, Client)
+end
 
-	local function Record(name, ...)
+-- A mocked API function: records the call, then returns read(client, ...).
+local function Api(client, name, read)
+	return function(...)
 		client.calls[name] = (client.calls[name] or 0) + 1
 		client.lastArgs[name] = { ... }
+		return read(client, ...)
 	end
+end
 
-	local ldb = NewLibDataBroker(client)
-	client.ldb = ldb
-	for _, name in ipairs(options.takenBrokerNames or {}) do
-		ldb:NewDataObject(name, { type = "data source", text = "taken" })
-	end
+-- A mocked unit API that, like the XP functions, only answers for the player.
+local function PlayerApi(client, name, field)
+	return Api(client, name, function(c, unit)
+		assert(unit == "player", name .. " only works on the player")
+		return c[field]
+	end)
+end
 
-	local env = {}
+local function AddLuaGlobals(env, client)
 	for _, name in ipairs(LUA_GLOBALS) do
 		env[name] = _G[name]
 	end
@@ -357,6 +435,9 @@ function wow.Load(options)
 		end
 		client.printed[#client.printed + 1] = table.concat(parts, " ")
 	end
+end
+
+local function AddEngineApi(env, client, libraries)
 	env.issecretvalue = function(value)
 		local secret = wow.IsSecret(value)
 		if secret then client.checked[value] = true end
@@ -367,42 +448,50 @@ function wow.Load(options)
 		AddOnRestrictionType = wow.Restriction,
 		AddOnRestrictionState = wow.RestrictionState,
 	}
-	env.LibStub = NewLibStub({ ["LibDataBroker-1.1"] = not options.withoutLibDataBroker and ldb or nil })
+	env.LibStub = NewLibStub(libraries)
 	env.CreateFrame = function(frameType)
 		assert(frameType == "Frame", "the addon only creates plain frames")
 		return NewFrame(client)
 	end
-	env.C_Timer = {
-		After = function(seconds, callback)
-			assert(seconds == 0, "the mock only models next-frame timers")
-			assert(type(callback) == "function", "C_Timer.After needs a function")
-			client.timers[#client.timers + 1] = callback
-		end,
-	}
-	env.GetManaRegen = function()
-		Record("GetManaRegen")
-		return client.normalRegen, client.castingRegen
+	env.C_Timer = NewTimerApi(client)
+	env.GetTime = function()
+		return client.now
 	end
-	env.UnitPowerMax = function(...)
-		Record("UnitPowerMax", ...)
-		return client.maxMana
-	end
-	env.IsResting = function()
-		Record("IsResting")
-		return client.resting
-	end
-	-- Rested XP state, which the resting broker must not use.
-	env.GetXPExhaustion = function()
-		Record("GetXPExhaustion")
-		return client.restedXP
-	end
-	env.GetRestState = function()
-		Record("GetRestState")
-		return client.restState, client.restState == 1 and "Rested" or "Normal", 1
-	end
+end
 
+local function AddCharacterApi(env, client)
+	env.GetManaRegen = Api(client, "GetManaRegen", function(c)
+		return c.normalRegen, c.castingRegen
+	end)
+	env.UnitPowerMax = PlayerApi(client, "UnitPowerMax", "maxMana")
+	env.IsResting = Api(client, "IsResting", function(c)
+		return c.resting
+	end)
+	-- Rested XP state, which the resting broker must not use.
+	env.GetXPExhaustion = Api(client, "GetXPExhaustion", function(c)
+		return c.restedXP
+	end)
+	env.GetRestState = Api(client, "GetRestState", function(c)
+		return c.restState, c.restState == 1 and "Rested" or "Normal", 1
+	end)
+	env.UnitXP = PlayerApi(client, "UnitXP", "xp")
+	env.UnitXPMax = PlayerApi(client, "UnitXPMax", "xpMax")
+	env.UnitLevel = PlayerApi(client, "UnitLevel", "level")
+	env.GetMaxLevelForPlayerExpansion = Api(client, "GetMaxLevelForPlayerExpansion", function(c)
+		return c.maxLevel
+	end)
+	env.C_PlayerInfo = {
+		IsXPUserDisabled = Api(client, "IsXPUserDisabled", function(c)
+			return c.xpDisabled
+		end),
+	}
+end
+
+-- Removes `without` from the environment, then makes any other unknown global
+-- read, and every global write, raise.
+local function Seal(env, without)
 	local absent = {}
-	for _, name in ipairs(options.without or {}) do
+	for _, name in ipairs(without) do
 		env[name] = nil
 		absent[name] = true
 	end
@@ -416,7 +505,29 @@ function wow.Load(options)
 			error("the addon assigned the global " .. tostring(name), 2)
 		end,
 	})
+end
 
+-- Builds a fresh client and loads the addon into it. Options:
+--   without = { "issecretvalue", ... }  globals this client lacks
+--   withoutLibDataBroker = true         LibStub has no LibDataBroker-1.1
+--   takenBrokerNames = { name, ... }    data objects another addon registered first
+function wow.Load(options)
+	options = options or {}
+	local client = NewClient()
+	local ldb = NewLibDataBroker(client)
+	client.ldb = ldb
+	for _, name in ipairs(options.takenBrokerNames or {}) do
+		ldb:NewDataObject(name, { type = "data source", text = "taken" })
+	end
+	local libraries = {}
+	if not options.withoutLibDataBroker then
+		libraries["LibDataBroker-1.1"] = ldb
+	end
+	local env = {}
+	AddLuaGlobals(env, client)
+	AddEngineApi(env, client, libraries)
+	AddCharacterApi(env, client)
+	Seal(env, options.without or {})
 	local ns = {}
 	local _, files = wow.ReadToc(wow.TOC_PATH)
 	for _, file in ipairs(files) do

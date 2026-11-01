@@ -8,13 +8,19 @@ max_line_length = 120
 exclude_files = { "build/**", "dist/**" }
 
 read_globals = {
+	"C_PlayerInfo",
 	"C_Timer",
 	"CreateFrame",
 	"Enum",
 	"GetManaRegen",
+	"GetMaxLevelForPlayerExpansion",
+	"GetTime",
 	"IsResting",
 	"LibStub",
+	"UnitLevel",
 	"UnitPowerMax",
+	"UnitXP",
+	"UnitXPMax",
 	"issecretvalue",
 }
 
